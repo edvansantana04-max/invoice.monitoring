@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BillingInvoiceStatus {
+  PLANNED
+  SENT
+  PAID
+}
+
+enum FollowUpStatus {
+  OPEN
+  DONE
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects  Project[]
+  prospects Prospect[]
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  product     String?
+  poNumber    String?
+  projectName String
+  currency    String   @default("IDR")
+  amountTotal Decimal? @db.Decimal(18, 2)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  billings Billing[]
+}
+
+model Billing {
+  id            String               @id @default(cuid())
+  projectId     String
+  project       Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  quotationNo   String?
+  poNumber      String?
+  month         DateTime?
+  terminRatio   Decimal?             @db.Decimal(8, 4)
+  amount        Decimal?             @db.Decimal(18, 2)
+  taxRate       Decimal              @default(0.11) @db.Decimal(6, 4)
+  amountAfterTax Decimal?            @db.Decimal(18, 2)
+
+  rawStatus     String?
+  invoiceStatus BillingInvoiceStatus @default(PLANNED)
+  invoiceDate   DateTime?
+
+  paidAmount    Decimal?             @db.Decimal(18, 2)
+  paymentDate   DateTime?
+
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([month])
+  @@index([invoiceStatus])
+}
+
+model ExpenseItem {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  groupName String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  values ExpenseValue[]
+}
+
+model ExpenseValue {
+  id        String      @id @default(cuid())
+  itemId    String
+  item      ExpenseItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  month     DateTime
+  amount    Decimal     @db.Decimal(18, 2)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([itemId, month])
+  @@index([month])
+}
+
+model Prospect {
+  id          String   @id @default(cuid())
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  solution    String?
+  clientName  String?
+  prospect    String?
+  status      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  followUps FollowUp[]
+}
+
+model FollowUp {
+  id         String        @id @default(cuid())
+  prospectId String
+  prospect   Prospect      @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  dueDate    DateTime?
+  note       String
+  status     FollowUpStatus @default(OPEN)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([prospectId])
+  @@index([status])
+}
